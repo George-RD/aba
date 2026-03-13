@@ -56,7 +56,12 @@ while true; do
 
     echo "======================== LOOP $ITERATION ========================"
 
-    cat "$PROMPT_FILE" | cargo run
+    # Use the installed binary if available, otherwise cargo run
+    if command -v aba &> /dev/null; then
+        cat "$PROMPT_FILE" | aba
+    else
+        cat "$PROMPT_FILE" | cargo run
+    fi
 
     # Push to remote
     git push origin "$CURRENT_BRANCH" 2>/dev/null || git push -u origin "$CURRENT_BRANCH"

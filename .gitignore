@@ -24,3 +24,10 @@ target/
 
 # ABA configs
 .aba_config.toml
+
+# Nix
+result
+.direnv
+
+# SOPS decrypted secrets (never commit plaintext)
+secrets/*.decrypted.*
