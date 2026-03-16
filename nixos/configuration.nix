@@ -150,8 +150,10 @@ in
     git
     jujutsu        # jj -- target VCS backend (see specs/source-control.md)
     rustup         # Rust toolchain management
+    gcc            # C compiler/linker required by cargo/rustc
     pkg-config     # Build dependency for openssl-sys
     openssl        # TLS library for HTTP clients
+    openssl.dev    # Development headers for openssl-sys crate
 
     # Secret management
     sops
@@ -166,6 +168,11 @@ in
     # Editors (for human SSH sessions)
     vim
   ];
+
+  # Build environment for Rust/cargo (openssl-sys needs pkg-config to find openssl)
+  environment.variables = {
+    PKG_CONFIG_PATH = "/run/current-system/sw/lib/pkgconfig";
+  };
 
   # --------------------------------------------------------------------------
   # SOPS-nix: secret decryption at deploy time
