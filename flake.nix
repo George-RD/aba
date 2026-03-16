@@ -64,28 +64,6 @@
           '';
         };
 
-        # Container image for Coolify deployment
-        packages.aba-image = pkgs.dockerTools.buildImage {
-          name = "aba";
-          tag = "latest";
-          copyToRoot = pkgs.buildEnv {
-            name = "aba-env";
-            paths = [
-              aba
-              pkgs.bashInteractive
-              pkgs.coreutils
-              pkgs.git
-              pkgs.cacert
-            ];
-          };
-          config = {
-            Cmd = [ "${aba}/bin/aba" ];
-            Env = [
-              "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-              "GIT_SSL_CAINFO=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-            ];
-          };
-        };
 
         devShells.default = craneLib.devShell {
           packages = with pkgs; [
