@@ -22,12 +22,11 @@ impl AbaConfig {
 
     pub fn load() -> Self {
         let path = Self::get_config_path();
-        if path.exists() {
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(config) = toml::from_str(&content) {
-                    return config;
-                }
-            }
+        if path.exists()
+            && let Ok(content) = fs::read_to_string(&path)
+            && let Ok(config) = toml::from_str(&content)
+        {
+            return config;
         }
         Self::default()
     }

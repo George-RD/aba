@@ -100,12 +100,11 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let mut prompt = String::new();
-    if !std::io::stdin().is_terminal() {
-        let _ = io::stdin().read_to_string(&mut prompt);
-    } else {
+    if std::io::stdin().is_terminal() {
         info!("No stdin detected. Please pipe PROMPT.md to aba.");
         return Ok(());
     }
+    let _ = io::stdin().read_to_string(&mut prompt);
 
     let mut agent = AgentCore::new(client);
     info!("Starting ABA Core Agent...");

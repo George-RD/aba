@@ -92,25 +92,25 @@ fn execute_tool(tool_call: &ToolCall) -> String {
     info!("Executing tool: {} with args: {}", tool_call.name, tool_call.arguments);
 
     if tool_call.name == "bash" {
-        if let Ok(args) = serde_json::from_str::<serde_json::Value>(&tool_call.arguments) {
-            if let Some(cmd) = args.get("command").and_then(|c| c.as_str()) {
-                info!("Running: {}", cmd);
-                return match std::process::Command::new("bash").arg("-c").arg(cmd).output() {
-                    Ok(out) => {
-                        let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-                        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-                        let exit_code = out.status.code().unwrap_or(-1);
-                        if !stdout.is_empty() {
-                            info!("stdout: {}", &stdout[..stdout.len().min(500)]);
-                        }
-                        if !stderr.is_empty() {
-                            warn!("stderr: {}", &stderr[..stderr.len().min(500)]);
-                        }
-                        format!("exit_code: {}\nstdout:\n{}\nstderr:\n{}", exit_code, stdout, stderr)
+        if let Ok(args) = serde_json::from_str::<serde_json::Value>(&tool_call.arguments)
+            && let Some(cmd) = args.get("command").and_then(|c| c.as_str())
+        {
+            info!("Running: {}", cmd);
+            return match std::process::Command::new("bash").arg("-c").arg(cmd).output() {
+                Ok(out) => {
+                    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                    let exit_code = out.status.code().unwrap_or(-1);
+                    if !stdout.is_empty() {
+                        info!("stdout: {}", &stdout[..stdout.len().min(500)]);
                     }
-                    Err(e) => format!("Failed to execute command: {}", e),
-                };
-            }
+                    if !stderr.is_empty() {
+                        warn!("stderr: {}", &stderr[..stderr.len().min(500)]);
+                    }
+                    format!("exit_code: {exit_code}\nstdout:\n{stdout}\nstderr:\n{stderr}")
+                }
+                Err(e) => format!("Failed to execute command: {e}"),
+            };
         }
         "Invalid bash tool arguments".to_string()
     } else {

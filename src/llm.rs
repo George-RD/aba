@@ -222,8 +222,8 @@ impl OpenAiOAuthClient {
         Self {
             client: Client::new(),
             model,
-            client_id: if is_oauth { client_id_or_key.clone() } else { "".to_string() },
-            api_key: if !is_oauth { Some(client_id_or_key) } else { None },
+            client_id: if is_oauth { client_id_or_key.clone() } else { String::new() },
+            api_key: if is_oauth { None } else { Some(client_id_or_key) },
         }
     }
 
@@ -266,10 +266,10 @@ impl OpenAiOAuthClient {
             if let Some(token) = token_res.access_token {
                 info!("Successfully obtained OAuth access token!");
                 return Ok(token);
-            } else if let Some(err) = token_res.error {
-                if err != "authorization_pending" {
-                    return Err(LlmError::Unauthorized(format!("OAuth Error: {}", err)));
-                }
+            } else if let Some(err) = token_res.error
+                && err != "authorization_pending"
+            {
+                return Err(LlmError::Unauthorized(format!("OAuth Error: {err}")));
             }
         }
     }
@@ -343,7 +343,7 @@ impl LlmClient for OpenAiOAuthClient {
         info!("Sending request to OpenAI API (model: {})", self.model);
 
         let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert("Authorization", reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token)).unwrap());
+        headers.insert("Authorization", reqwest::header::HeaderValue::from_str(&format!("Bearer {token}")).unwrap());
         headers.insert("content-type", "application/json".parse().unwrap());
 
         let openai_messages = {
@@ -379,28 +379,27 @@ impl LlmClient for OpenAiOAuthClient {
         let mut text = None;
         let mut tool_calls: Vec<ToolCall> = Vec::new();
 
-        if let Some(choices) = body.get("choices").and_then(|c| c.as_array()) {
-            if let Some(first_choice) = choices.first() {
-                if let Some(msg) = first_choice.get("message") {
-                    if let Some(content) = msg.get("content").and_then(|c| c.as_str()) {
-                        text = Some(content.to_string());
-                    }
-                    if let Some(tcs) = msg.get("tool_calls").and_then(|t| t.as_array()) {
-                        for tc in tcs {
-                            let id = tc.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                            let name = tc.get("function")
-                                .and_then(|f| f.get("name"))
-                                .and_then(|n| n.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let arguments = tc.get("function")
-                                .and_then(|f| f.get("arguments"))
-                                .and_then(|a| a.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            tool_calls.push(ToolCall { id, name, arguments });
-                        }
-                    }
+        if let Some(choices) = body.get("choices").and_then(|c| c.as_array())
+            && let Some(first_choice) = choices.first()
+            && let Some(msg) = first_choice.get("message")
+        {
+            if let Some(content) = msg.get("content").and_then(|c| c.as_str()) {
+                text = Some(content.to_string());
+            }
+            if let Some(tcs) = msg.get("tool_calls").and_then(|t| t.as_array()) {
+                for tc in tcs {
+                    let id = tc.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let name = tc.get("function")
+                        .and_then(|f| f.get("name"))
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let arguments = tc.get("function")
+                        .and_then(|f| f.get("arguments"))
+                        .and_then(|a| a.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    tool_calls.push(ToolCall { id, name, arguments });
                 }
             }
         }

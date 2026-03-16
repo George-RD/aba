@@ -19,3 +19,19 @@ dotenvy = "0.15"
 dialoguer = "0.11"
 directories = "5.0"
 toml = "0.8"
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+# Deny correctness lints (real bugs)
+correctness = { level = "deny", priority = -1 }
+# Warn on pedantic lints (style/best-practice, occasionally noisy)
+pedantic = { level = "warn", priority = -1 }
+# Deny common mistake patterns
+all = { level = "deny", priority = -1 }
+# Allow specific pedantic lints that are too noisy
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

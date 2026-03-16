@@ -14,6 +14,7 @@ pub trait Vcs {
     fn revert(&self) -> Result<(), anyhow::Error>;
 
     /// Get a summary of current changes.
+    #[allow(dead_code)]
     fn status(&self) -> Result<String, anyhow::Error>;
 }
 
