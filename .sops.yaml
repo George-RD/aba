@@ -1,19 +1,11 @@
 # SOPS configuration for ABA secrets
-# To set up:
-#   1. Generate an age key: age-keygen -o ~/.config/sops/age/keys.txt
-#   2. Add the public key below
-#   3. Create secrets: sops secrets/api-keys.yaml
-#   4. For the server: generate a separate age key and add its public key here
-#
 # Keys listed here can decrypt secrets in this repo.
 keys:
-  # Add your age public keys here (one per machine/person):
-  # - &dev age1abc123...
-  # - &server age1xyz789...
+  - &local age1lgs9xekgvhr64l3tv8jtka72nmng7x0gk555d327pgd3dgyz74ssehnz9x
+  - &server age1ycwttm5dx9yp2q8xsw8cy5un6kl9zqf0wl4afgdrxku5nepflygq5emk0x
 creation_rules:
-  - path_regex: secrets/.*\.(yaml|json|env)$
+  - path_regex: secrets/.*
     key_groups:
-      - age: []
-        # Uncomment and add your keys:
-        # - *dev
-        # - *server
+      - age:
+          - *local
+          - *server

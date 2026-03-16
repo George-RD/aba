@@ -80,15 +80,26 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let client: Box<dyn llm::LlmClient>;
-    
-    if env::var("ANTHROPIC_API_KEY").is_ok() || config.anthropic_api_key.is_some() {
+
+    // Proxy mode: if PROXY_BASE_URL is set, route through the API proxy (no keys needed).
+    // The proxy injects auth headers server-side. See specs/security.md.
+    // Example: PROXY_BASE_URL=http://127.0.0.1:8080/anthropic
+    if let Ok(proxy_url) = env::var("PROXY_BASE_URL") {
+        let model = config.default_model.clone().unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
+        let provider = env::var("PROXY_PROVIDER").unwrap_or_else(|_| "anthropic".to_string());
+        info!("Using API proxy at {proxy_url} (provider: {provider})");
+        client = match provider.as_str() {
+            "openai" => Box::new(llm::OpenAiOAuthClient::with_proxy(proxy_url, model)),
+            _ => Box::new(llm::AnthropicClient::with_proxy(proxy_url, model)),
+        };
+    } else if env::var("ANTHROPIC_API_KEY").is_ok() || config.anthropic_api_key.is_some() {
         let key = env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| config.anthropic_api_key.clone().unwrap());
-        let model = config.default_model.clone().unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string());
+        let model = config.default_model.clone().unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
         client = Box::new(llm::AnthropicClient::new(key, model));
     } else if env::var("OPENAI_API_KEY").is_ok() || config.openai_api_key.is_some() {
         let key = env::var("OPENAI_API_KEY").unwrap_or_else(|_| config.openai_api_key.clone().unwrap());
         let model = config.default_model.clone().unwrap_or_else(|| "gpt-4o".to_string());
-        client = Box::new(llm::OpenAiOAuthClient::new(key, model, false)); 
+        client = Box::new(llm::OpenAiOAuthClient::new(key, model, false));
     } else if config.use_openai_oauth.unwrap_or(false) {
         let client_id = env::var("OAUTH_CLIENT_ID")
             .unwrap_or_else(|_| "YOUR_OAUTH_CLIENT_ID".to_string());

@@ -68,6 +68,7 @@ pub struct AnthropicClient {
     client: Client,
     api_key: String,
     model: String,
+    base_url: String,
 }
 
 impl AnthropicClient {
@@ -76,6 +77,17 @@ impl AnthropicClient {
             client: Client::new(),
             api_key,
             model,
+            base_url: "https://api.anthropic.com".to_string(),
+        }
+    }
+
+    /// Create a client that talks through an API proxy (no API key needed — proxy injects it).
+    pub fn with_proxy(base_url: String, model: String) -> Self {
+        Self {
+            client: Client::new(),
+            api_key: String::new(),
+            model,
+            base_url,
         }
     }
 
@@ -130,7 +142,9 @@ impl LlmClient for AnthropicClient {
         info!("Sending request to Anthropic API (model: {})", self.model);
 
         let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert("x-api-key", reqwest::header::HeaderValue::from_str(&self.api_key).unwrap());
+        if !self.api_key.is_empty() {
+            headers.insert("x-api-key", reqwest::header::HeaderValue::from_str(&self.api_key).unwrap());
+        }
         headers.insert("anthropic-version", "2023-06-01".parse().unwrap());
         headers.insert("content-type", "application/json".parse().unwrap());
 
@@ -151,7 +165,8 @@ impl LlmClient for AnthropicClient {
             );
         }
 
-        let response = self.client.post("https://api.anthropic.com/v1/messages")
+        let url = format!("{}/v1/messages", self.base_url);
+        let response = self.client.post(&url)
             .headers(headers).json(&payload).send().await
             .map_err(|e| LlmError::RequestFailed(e.to_string()))?;
 
@@ -215,6 +230,7 @@ pub struct OpenAiOAuthClient {
     model: String,
     client_id: String,
     api_key: Option<String>,
+    base_url: String,
 }
 
 impl OpenAiOAuthClient {
@@ -224,6 +240,18 @@ impl OpenAiOAuthClient {
             model,
             client_id: if is_oauth { client_id_or_key.clone() } else { String::new() },
             api_key: if is_oauth { None } else { Some(client_id_or_key) },
+            base_url: "https://api.openai.com".to_string(),
+        }
+    }
+
+    /// Create a client that talks through an API proxy (no API key needed — proxy injects it).
+    pub fn with_proxy(base_url: String, model: String) -> Self {
+        Self {
+            client: Client::new(),
+            model,
+            client_id: String::new(),
+            api_key: Some(String::new()), // Skip OAuth flow; proxy handles auth
+            base_url,
         }
     }
 
@@ -366,7 +394,8 @@ impl LlmClient for OpenAiOAuthClient {
             );
         }
 
-        let response = self.client.post("https://api.openai.com/v1/chat/completions")
+        let url = format!("{}/v1/chat/completions", self.base_url);
+        let response = self.client.post(&url)
             .headers(headers).json(&payload).send().await
             .map_err(|e| LlmError::RequestFailed(e.to_string()))?;
 
