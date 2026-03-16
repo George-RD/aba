@@ -45,6 +45,14 @@ echo "  Max iterations: $([ $MAX_ITERATIONS -eq 0 ] && echo 'unlimited' || echo 
 echo "======================================"
 
 export RUST_LOG=info
+
+# --- Proxy configuration (VPS deployment) ---
+# If PROXY_BASE_URL is set, ABA routes through the local API proxy.
+# The proxy injects auth headers — ABA never sees API keys.
+if [ -n "$PROXY_BASE_URL" ]; then
+    echo "  Proxy: $PROXY_BASE_URL"
+fi
+
 ITERATION=1
 
 while true; do
@@ -56,11 +64,18 @@ while true; do
 
     echo "======================== LOOP $ITERATION ========================"
 
-    # Use the installed binary if available, otherwise cargo run
-    if command -v aba &> /dev/null; then
+    # Use the release binary if available, otherwise cargo run
+    if [ -x "./target/release/aba" ]; then
+        cat "$PROMPT_FILE" | ./target/release/aba
+    elif command -v aba &> /dev/null; then
         cat "$PROMPT_FILE" | aba
     else
         cat "$PROMPT_FILE" | cargo run
+    fi
+
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "ABA exited with code $EXIT_CODE. Continuing to next iteration..."
     fi
 
     # Push to remote
