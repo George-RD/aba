@@ -102,7 +102,7 @@ async fn main() -> anyhow::Result<()> {
         client = Box::new(llm::OpenAiOAuthClient::new(key, model, false));
     } else if config.use_openai_oauth.unwrap_or(false) {
         let client_id = env::var("OAUTH_CLIENT_ID")
-            .unwrap_or_else(|_| "YOUR_OAUTH_CLIENT_ID".to_string());
+            .unwrap_or_else(|_| llm::OPENAI_OAUTH_CLIENT_ID.to_string());
         let model = config.default_model.clone().unwrap_or_else(|| "gpt-5.4".to_string());
         client = Box::new(llm::OpenAiOAuthClient::new(client_id, model, true));
     } else {

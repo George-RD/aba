@@ -5,6 +5,8 @@ use reqwest::Client;
 use serde_json::json;
 use tracing::info;
 use std::time::Duration;
+use std::path::PathBuf;
+use directories::ProjectDirs;
 
 #[derive(Debug, Error)]
 pub enum LlmError {
@@ -211,18 +213,79 @@ impl LlmClient for AnthropicClient {
 // OpenAI Client implementation (With Device OAuth support)
 // -----------------------------------------------------------------------------
 
+/// Default OAuth client ID for the `OpenAI` Codex CLI flow.
+pub const OPENAI_OAUTH_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
+
+const OPENAI_DEVICE_CODE_URL: &str =
+    "https://auth.openai.com/api/accounts/deviceauth/usercode";
+const OPENAI_TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
+const OPENAI_OAUTH_SCOPES: &str = "openid profile email offline_access";
+
 #[derive(Deserialize)]
 struct DeviceAuthResponse {
     device_code: String,
     user_code: String,
     verification_uri: String,
+    #[serde(default = "default_interval")]
     interval: u64,
 }
 
+fn default_interval() -> u64 {
+    5
+}
+
+/// Token response from the device-code polling step.
 #[derive(Deserialize)]
-struct TokenResponse {
+#[allow(dead_code)] // access_token is deserialized but only id_token/refresh_token are used
+struct DeviceTokenResponse {
+    access_token: Option<String>,
+    id_token: Option<String>,
+    refresh_token: Option<String>,
+    error: Option<String>,
+}
+
+/// Token response from the token-exchange step (returns an API key).
+#[derive(Deserialize)]
+struct TokenExchangeResponse {
     access_token: Option<String>,
     error: Option<String>,
+}
+
+/// Persisted OAuth tokens so the device flow is only needed once.
+#[derive(Serialize, Deserialize, Default)]
+struct OAuthTokenCache {
+    refresh_token: Option<String>,
+}
+
+impl OAuthTokenCache {
+    fn path() -> PathBuf {
+        if let Some(dirs) = ProjectDirs::from("", "", "ABA") {
+            dirs.config_dir().join("oauth-tokens.json")
+        } else {
+            PathBuf::from(".aba_oauth_tokens.json")
+        }
+    }
+
+    fn load() -> Self {
+        let path = Self::path();
+        if path.exists()
+            && let Ok(data) = std::fs::read_to_string(&path)
+            && let Ok(cache) = serde_json::from_str(&data)
+        {
+            return cache;
+        }
+        Self::default()
+    }
+
+    fn save(&self) {
+        let path = Self::path();
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(json) = serde_json::to_string_pretty(self) {
+            let _ = std::fs::write(&path, json);
+        }
+    }
 }
 
 pub struct OpenAiOAuthClient {
@@ -238,13 +301,21 @@ impl OpenAiOAuthClient {
         Self {
             client: Client::new(),
             model,
-            client_id: if is_oauth { client_id_or_key.clone() } else { String::new() },
-            api_key: if is_oauth { None } else { Some(client_id_or_key) },
+            client_id: if is_oauth {
+                client_id_or_key.clone()
+            } else {
+                String::new()
+            },
+            api_key: if is_oauth {
+                None
+            } else {
+                Some(client_id_or_key)
+            },
             base_url: "https://api.openai.com".to_string(),
         }
     }
 
-    /// Create a client that talks through an API proxy (no API key needed — proxy injects it).
+    /// Create a client that talks through an API proxy (no API key needed -- proxy injects it).
     pub fn with_proxy(base_url: String, model: String) -> Self {
         Self {
             client: Client::new(),
@@ -255,20 +326,119 @@ impl OpenAiOAuthClient {
         }
     }
 
+    /// Exchange an `id_token` for an `OpenAI` API key via token-exchange grant.
+    async fn exchange_for_api_key(&self, id_token: &str) -> Result<String, LlmError> {
+        let res = self
+            .client
+            .post(OPENAI_TOKEN_URL)
+            .form(&[
+                ("grant_type", "urn:ietf:params:oauth:grant-type:token-exchange"),
+                ("client_id", &self.client_id),
+                ("requested_token", "openai-api-key"),
+                ("subject_token", id_token),
+                (
+                    "subject_token_type",
+                    "urn:ietf:params:oauth:token-type:id_token",
+                ),
+            ])
+            .send()
+            .await
+            .map_err(|e| LlmError::RequestFailed(e.to_string()))?;
+
+        let body: TokenExchangeResponse = res
+            .json()
+            .await
+            .map_err(|e| LlmError::ParseFailed(e.to_string()))?;
+
+        if let Some(api_key) = body.access_token {
+            Ok(api_key)
+        } else {
+            let err_msg = body
+                .error
+                .unwrap_or_else(|| "unknown error".to_string());
+            Err(LlmError::Unauthorized(format!(
+                "Token exchange failed: {err_msg}"
+            )))
+        }
+    }
+
+    /// Try to refresh an existing token, returning a fresh API key on success.
+    async fn try_refresh(&self, refresh_token: &str) -> Result<String, LlmError> {
+        info!("Attempting to refresh OAuth token...");
+        let res = self
+            .client
+            .post(OPENAI_TOKEN_URL)
+            .form(&[
+                ("grant_type", "refresh_token"),
+                ("client_id", &self.client_id),
+                ("refresh_token", refresh_token),
+            ])
+            .send()
+            .await
+            .map_err(|e| LlmError::RequestFailed(e.to_string()))?;
+
+        let body: DeviceTokenResponse = res
+            .json()
+            .await
+            .map_err(|e| LlmError::ParseFailed(e.to_string()))?;
+
+        if let Some(ref err) = body.error {
+            return Err(LlmError::Unauthorized(format!(
+                "Refresh failed: {err}"
+            )));
+        }
+
+        let id_token = body.id_token.ok_or_else(|| {
+            LlmError::ParseFailed("No id_token in refresh response".to_string())
+        })?;
+
+        // Persist the (possibly rotated) refresh token.
+        if let Some(new_rt) = &body.refresh_token {
+            let mut cache = OAuthTokenCache::load();
+            cache.refresh_token = Some(new_rt.clone());
+            cache.save();
+        }
+
+        let api_key = self.exchange_for_api_key(&id_token).await?;
+        info!("Successfully refreshed OAuth token.");
+        Ok(api_key)
+    }
+
+    /// Obtain an API key via OAuth -- tries cached refresh first, falls back to device flow.
     async fn get_access_token(&self) -> Result<String, LlmError> {
+        // Direct API key (no OAuth needed).
         if let Some(key) = &self.api_key {
             return Ok(key.clone());
         }
 
-        let auth_url = "https://auth0.openai.com/oauth/device/code";
-        let token_url = "https://auth0.openai.com/oauth/token";
+        // Try cached refresh token first.
+        let cache = OAuthTokenCache::load();
+        if let Some(ref rt) = cache.refresh_token {
+            match self.try_refresh(rt).await {
+                Ok(api_key) => return Ok(api_key),
+                Err(e) => {
+                    info!("Cached refresh token expired or invalid: {e}. Starting device flow.");
+                }
+            }
+        }
 
-        info!("Starting OAuth Device Flow for Codex Subscription...");
-        let res = self.client.post(auth_url)
-            .form(&[("client_id", &self.client_id), ("scope", &"offline_access openid profile".to_string())])
-            .send().await.map_err(|e| LlmError::RequestFailed(e.to_string()))?;
+        // --- Full device-code flow ---
+        info!("Starting OAuth Device Flow for OpenAI Codex...");
+        let res = self
+            .client
+            .post(OPENAI_DEVICE_CODE_URL)
+            .form(&[
+                ("client_id", self.client_id.as_str()),
+                ("scope", OPENAI_OAUTH_SCOPES),
+            ])
+            .send()
+            .await
+            .map_err(|e| LlmError::RequestFailed(e.to_string()))?;
 
-        let device_auth: DeviceAuthResponse = res.json().await.map_err(|e| LlmError::ParseFailed(e.to_string()))?;
+        let device_auth: DeviceAuthResponse = res
+            .json()
+            .await
+            .map_err(|e| LlmError::ParseFailed(e.to_string()))?;
 
         info!("===============================================");
         info!("ACTION REQUIRED: OAuth Login");
@@ -278,28 +448,65 @@ impl OpenAiOAuthClient {
         info!("===============================================");
 
         let interval = std::cmp::max(device_auth.interval, 5);
-        
-        loop {
+
+        // Poll for device authorization.
+        let device_tokens = loop {
             tokio::time::sleep(Duration::from_secs(interval)).await;
-            
-            let res = self.client.post(token_url)
+
+            let res = self
+                .client
+                .post(OPENAI_TOKEN_URL)
                 .form(&[
-                    ("client_id", &self.client_id),
-                    ("grant_type", &"urn:ietf:params:oauth:grant-type:device_code".to_string()),
-                    ("device_code", &device_auth.device_code),
-                ]).send().await.map_err(|e| LlmError::RequestFailed(e.to_string()))?;
+                    ("client_id", self.client_id.as_str()),
+                    (
+                        "grant_type",
+                        "urn:ietf:params:oauth:grant-type:device_code",
+                    ),
+                    ("device_code", device_auth.device_code.as_str()),
+                ])
+                .send()
+                .await
+                .map_err(|e| LlmError::RequestFailed(e.to_string()))?;
 
-            let token_res: TokenResponse = res.json().await.unwrap_or(TokenResponse { access_token: None, error: None });
+            let token_res: DeviceTokenResponse = res.json().await.unwrap_or(
+                DeviceTokenResponse {
+                    access_token: None,
+                    id_token: None,
+                    refresh_token: None,
+                    error: None,
+                },
+            );
 
-            if let Some(token) = token_res.access_token {
-                info!("Successfully obtained OAuth access token!");
-                return Ok(token);
-            } else if let Some(err) = token_res.error
-                && err != "authorization_pending"
-            {
-                return Err(LlmError::Unauthorized(format!("OAuth Error: {err}")));
+            if token_res.id_token.is_some() {
+                break token_res;
             }
+
+            if let Some(ref err) = token_res.error
+                && err != "authorization_pending"
+                && err != "slow_down"
+            {
+                return Err(LlmError::Unauthorized(format!(
+                    "OAuth Error: {err}"
+                )));
+            }
+        };
+
+        // Persist the refresh token for future sessions.
+        if let Some(ref rt) = device_tokens.refresh_token {
+            let mut new_cache = OAuthTokenCache::load();
+            new_cache.refresh_token = Some(rt.clone());
+            new_cache.save();
+            info!("Saved refresh token for future sessions.");
         }
+
+        let id_token = device_tokens.id_token.ok_or_else(|| {
+            LlmError::ParseFailed("No id_token in device flow response".to_string())
+        })?;
+
+        // Exchange the id_token for an API key.
+        let api_key = self.exchange_for_api_key(&id_token).await?;
+        info!("Successfully obtained OAuth API key!");
+        Ok(api_key)
     }
 
     fn convert_messages(messages: &[Message]) -> Vec<serde_json::Value> {

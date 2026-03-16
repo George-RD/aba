@@ -41,7 +41,8 @@ Prioritized by importance for improving the Ralph loop's effectiveness:
 - [ ] Parallel agent spawning
 - [ ] Shared IMPLEMENTATION_PLAN.md coordination
 
-### Tier 5: Observability
+### Tier 5: Observability & OODA loop modes
+Reference: [jomadu/ralph-wiggum-ooda](https://github.com/jomadu/ralph-wiggum-ooda) — decomposes the Ralph loop into OODA phases (Observe, Orient, Decide, Act) with separate prompts per phase. Currently ABA only has plan/build modes (Huntley's canonical "3 Phases, 2 Prompts, 1 Loop"). As ABA matures, observe/orient could become automated loop modes rather than purely human activities — an agent that reviews iteration history, identifies failure patterns, and tunes prompts or specs.
 - [ ] Structured telemetry per tool call (name, args, result, duration, tokens)
 - [ ] Iteration summary file (what was attempted, what succeeded/failed)
 - [ ] Dashboard or log viewer for monitoring Ralph loops

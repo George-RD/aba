@@ -88,6 +88,10 @@ in
     "d /var/lib/aba/key-requests 1733 aba aba -"
     # 1733 = sticky bit + owner write + group/other write but not read others' files
     # ABA can create requests; only root can review all of them
+
+    # Runtime directory for the token manager -- holds the fresh OpenAI API key.
+    # root:aba-proxy so nginx (running as aba-proxy) can read the token file.
+    "d /run/aba-proxy 0750 root aba-proxy -"
   ];
 
   # --------------------------------------------------------------------------
@@ -252,6 +256,37 @@ in
   };
 
   # --------------------------------------------------------------------------
+  # Token manager: keeps a fresh OpenAI OAuth API key on disk
+  # --------------------------------------------------------------------------
+  #
+  # Runs scripts/token-manager.sh as a long-running service.
+  # Every 7 minutes it refreshes the OAuth token and writes a fresh API key
+  # to /run/aba-proxy/openai-token. The nginx OpenAI location reads this file
+  # for its Authorization header instead of using a static key.
+  #
+  systemd.services.token-manager = {
+    description = "OpenAI OAuth token manager -- refresh and exchange loop";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "nginx.service" ];
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    serviceConfig = {
+      Type = "simple";
+      Restart = "always";
+      RestartSec = 30;
+      User = "root";
+      Group = "root";
+      # token-manager.sh is deployed alongside the NixOS config
+      ExecStart = "${pkgs.bash}/bin/bash /var/lib/aba/token-manager.sh";
+      # Hardening
+      ProtectHome = true;
+      NoNewPrivileges = true;
+      PrivateTmp = true;
+    };
+    path = [ pkgs.curl pkgs.jq pkgs.coreutils config.services.nginx.package ];
+  };
+
+  # --------------------------------------------------------------------------
   # nginx reverse proxy: API key injection
   # --------------------------------------------------------------------------
   #
@@ -347,12 +382,22 @@ in
       # ---------------------------------------------------------------
       # ABA calls: POST http://127.0.0.1:8080/openai/v1/chat/completions
       # nginx forwards to: POST https://api.openai.com/v1/chat/completions
-      # with Authorization: Bearer header injected
+      # with Authorization: Bearer header injected.
+      #
+      # The token is read from /run/aba-proxy/openai-key.inc, which is
+      # an nginx snippet setting $openai_oauth_key. The token-manager
+      # systemd service rewrites this file every 7 minutes and sends
+      # SIGHUP to nginx so it picks up the new value without downtime.
+      # Falls back to $openai_api_key from api-keys.inc if the OAuth
+      # key file does not exist.
       locations."/openai/" = {
         proxyPass = "https://api.openai.com/";
         extraConfig = ''
-          # Inject the OpenAI Bearer token (read from the keys config)
-          proxy_set_header Authorization "Bearer $openai_api_key";
+          # Include the OAuth-derived key if the token-manager has written it.
+          include /run/aba-proxy/openai-key.inc;
+
+          # Inject the OpenAI Bearer token (prefer OAuth key, fall back to SOPS key)
+          proxy_set_header Authorization "Bearer $openai_oauth_key";
 
           # Required for HTTPS upstream with SNI
           proxy_ssl_server_name on;
@@ -400,6 +445,7 @@ in
     ReadWritePaths = [
       "/var/log/nginx"
       "/run/nginx"
+      "/run/aba-proxy"  # Token manager writes openai-key.inc here; nginx reads it
     ];
     NoNewPrivileges = true;         # Cannot gain additional privileges
     PrivateTmp = true;              # Isolated /tmp
