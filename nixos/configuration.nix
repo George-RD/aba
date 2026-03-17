@@ -97,6 +97,7 @@ in
 #   RUST_LOG=info
 
 ABA_DIR="$HOME/aba"
+alias aba='$ABA_DIR/scripts/repl.sh'
 alias aba-loop='cd $ABA_DIR && ./loop.sh'
 alias aba-build='cd $ABA_DIR && ./loop.sh build'
 alias aba-plan='cd $ABA_DIR && ./loop.sh plan'
@@ -109,6 +110,7 @@ echo "  Provider: $PROXY_PROVIDER"
 echo "========================================"
 echo ""
 echo "Commands:"
+echo "  aba         -- talk to ABA (conversational REPL)"
 echo "  aba-loop    -- start the Ralph loop (build mode)"
 echo "  aba-build   -- start the Ralph loop (build mode)"
 echo "  aba-plan    -- start the Ralph loop (plan mode)"
