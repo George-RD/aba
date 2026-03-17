@@ -36,16 +36,27 @@ Prioritized by importance for improving the Ralph loop's effectiveness:
 - [ ] JJ backend for VCS trait (`jj commit`, `jj undo`)
 - [ ] Workspace detection (`.jj/` vs `.git/`)
 
-### Tier 4: Multi-agent support
+### Tier 4: Conversational layer
+- [ ] Interactive CLI mode — `aba` with no stdin starts conversational REPL
+- [ ] Thread persistence (SQLite + FTS5), conversation history and search
+- [ ] Multi-loop management — spawn, monitor, steer concurrent Ralph loops
+- [ ] Web UI for loop monitoring, thread browsing, cost dashboards
+- See `specs/conversational-layer.md` for full spec
+
+### Tier 5: Multi-agent support
 - [ ] Workspace management (JJ workspaces or git worktrees)
 - [ ] Parallel agent spawning
 - [ ] Shared IMPLEMENTATION_PLAN.md coordination
 
-### Tier 5: Observability & OODA loop modes
+### Tier 6: Observability & OODA loop modes
 Reference: [jomadu/ralph-wiggum-ooda](https://github.com/jomadu/ralph-wiggum-ooda) — decomposes the Ralph loop into OODA phases (Observe, Orient, Decide, Act) with separate prompts per phase. Currently ABA only has plan/build modes (Huntley's canonical "3 Phases, 2 Prompts, 1 Loop"). As ABA matures, observe/orient could become automated loop modes rather than purely human activities — an agent that reviews iteration history, identifies failure patterns, and tunes prompts or specs.
 - [ ] Structured telemetry per tool call (name, args, result, duration, tokens)
 - [ ] Iteration summary file (what was attempted, what succeeded/failed)
 - [ ] Dashboard or log viewer for monitoring Ralph loops
+
+## Bootstrap Flow
+
+On first run in a new project, ABA looks for a `BOOTSTRAP.md` file for initial orientation — project structure, language, test commands, conventions. This is a one-shot setup flow that primes ABA before any Ralph loops run. No conversational layer is needed for bootstrap; it feeds directly into the agent as context.
 
 ## How to Run the Bootstrap
 

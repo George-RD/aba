@@ -62,6 +62,7 @@ Single Cargo package (edition 2024) with four modules:
 - `specs/agent-core.md` — Agent loop, tool system, LLM abstraction
 - `specs/source-control.md` — VCS trait, git→JJ migration path
 - `specs/self-bootstrapping.md` — What ABA should build when Ralph-looping on itself
+- `specs/conversational-layer.md` — Human↔agent dialogue, thread persistence, multi-loop management
 - `specs/observability.md` — Logging, cost tracking, thread audit trails, loop health
 
 ### `dummy-project/`
