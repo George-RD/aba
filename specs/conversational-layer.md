@@ -65,18 +65,21 @@ The proxy handles auth, rate limiting, cost tracking, and structured logging. UI
 
 ## Progressive Build
 
-Each UI surface is built by ABA itself via Ralph loops, in order of complexity:
+Each UI surface is built by ABA itself via Ralph loops, in order of complexity. See `specs/self-bootstrapping.md` for the milestone-based roadmap.
 
-1. **CLI** (stdin/stdout) — already exists as the loop interface
-2. **Interactive CLI** — `aba` with no stdin enters conversational mode (REPL)
-3. **TUI** — terminal UI with panes for conversation, loop status, logs
-4. **Web** — browser-based UI (like loom-web), served by the proxy
+1. **Bootstrap REPL** (Milestone 0) — basic conversational script, the entry point for talking to ABA
+2. **CLI** (stdin/stdout) — already exists as the headless loop interface (Milestone 1)
+3. **Interactive CLI** (Milestone 6) — `aba` with no stdin enters conversational Rust REPL with streaming, search, thread resume
+4. **TUI** — terminal UI with panes for conversation, loop status, logs (future, beyond current milestones)
+5. **Web** (Milestone 10) — browser-based UI served by the proxy
 
-Each layer builds on the previous. The CLI conversational mode is the foundation; TUI and web are rendering surfaces on top of the same conversational engine.
+Each layer builds on the previous. The bootstrap REPL (Milestone 0) is the foundation; the Rust CLI (Milestone 6) replaces it; TUI and web are rendering surfaces on top of the same conversational engine.
 
 ## Implementation Tiers
 
-### Tier 0: Current State
+These tiers map to milestones in `specs/self-bootstrapping.md`:
+
+### Tier 0: Current State (pre-Milestone 0)
 
 What exists today. Human manages loops manually.
 
@@ -85,42 +88,52 @@ What exists today. Human manages loops manually.
 - Human monitors via terminal, steers by editing prompts
 - No conversation persistence, no session management
 
-### Tier 1: Interactive CLI Mode
+### Tier 1: Bootstrap REPL (Milestone 0)
 
-`aba` with no stdin starts a conversational REPL.
+User can talk to ABA. A basic script or binary mode that implements a read-eval-print loop.
+
+- First run loads BOOTSTRAP.md as system context
+- User types messages and gets responses via the proxy
+- Conversation history kept in memory (session-scoped, not persisted)
+- This is the entry point: before ABA loops, before it plans, the user talks to it
+
+### Tier 2: Interactive CLI Mode (Milestone 6)
+
+`aba` with no stdin starts a full conversational Rust REPL.
 
 - Human types objectives in natural language
 - ABA decomposes into tasks, spawns Ralph loops
-- Loop output streams to the terminal
-- Conversation history kept in memory (session-scoped, not persisted)
+- Loop output streams to the terminal with streaming responses
+- `aba search`, `aba resume`, `aba threads` subcommands
 - `aba run <prompt-file>` remains for headless/scripted use
 
-### Tier 2: Thread Persistence
+### Tier 3: Thread Persistence (Milestone 5)
 
 Conversations survive across sessions.
 
 - SQLite database for thread storage (messages, metadata, loop references)
 - FTS5 full-text search across all threads
-- `aba threads` — list past conversations
-- `aba resume <thread-id>` — continue a previous conversation
+- `aba threads` -- list past conversations
+- `aba resume <thread-id>` -- continue a previous conversation
 - Loop iteration results stored as structured records
 
-### Tier 3: Multi-Loop Management
+### Tier 4: Multi-Loop Management (Milestone 8)
 
 Concurrent weavers with a unified control plane.
 
 - Spawn multiple Ralph loops from a single conversation
 - Status dashboard (which loops are running, iteration counts, pass/fail rates)
-- Loop coordination — shared plans, dependency ordering
+- Loop coordination -- shared plans, dependency ordering
 - Background execution with notification on completion or failure
-- JJ workspaces or git worktrees for parallel loop isolation
+- JJ workspaces for parallel loop isolation
 
-### Tier 4: Web UI
+### Tier 5: Web UI (Milestone 10)
 
 Browser-based interface, served by the proxy.
 
-- Real-time loop monitoring (WebSocket stream of iteration events)
+- Real-time loop monitoring (SSE or WebSocket stream of iteration events)
 - Thread browser with search
 - Visual diff viewer for loop iterations
 - Cost and token usage dashboards
+- Approval UI for human-in-the-loop decisions
 - Multi-project support
