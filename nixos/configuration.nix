@@ -96,9 +96,10 @@ in
 #   PROXY_PROVIDER=openai
 #   RUST_LOG=info
 
-alias aba-loop='/home/aba/repos/aba/loop.sh'
-alias aba-build='/home/aba/repos/aba/loop.sh build'
-alias aba-plan='/home/aba/repos/aba/loop.sh plan'
+ABA_DIR="$HOME/aba"
+alias aba-loop='cd $ABA_DIR && ./loop.sh'
+alias aba-build='cd $ABA_DIR && ./loop.sh build'
+alias aba-plan='cd $ABA_DIR && ./loop.sh plan'
 alias aba-status='curl -s http://127.0.0.1:8080/health'
 
 echo "========================================"
