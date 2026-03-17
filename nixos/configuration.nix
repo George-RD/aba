@@ -81,6 +81,43 @@ in
   };
   users.groups.aba-proxy = { };
 
+  # --------------------------------------------------------------------------
+  # ABA user shell profile
+  # --------------------------------------------------------------------------
+  # Write a .bashrc for the aba user so SSH sessions get a welcome message
+  # and convenient aliases. Using an activation script since NixOS doesn't
+  # have a per-user profile option for normal users.
+  system.activationScripts.aba-bashrc = lib.stringAfter [ "users" ] ''
+    cat > /home/aba/.bashrc <<'BASHRC'
+# ABA agent shell profile (managed by NixOS -- do not edit manually)
+
+# Proxy is configured system-wide via environment.variables:
+#   PROXY_BASE_URL=http://127.0.0.1:8080/openai
+#   PROXY_PROVIDER=openai
+#   RUST_LOG=info
+
+alias aba-loop='/home/aba/repos/aba/loop.sh'
+alias aba-build='/home/aba/repos/aba/loop.sh build'
+alias aba-plan='/home/aba/repos/aba/loop.sh plan'
+alias aba-status='curl -s http://127.0.0.1:8080/health'
+
+echo "========================================"
+echo "  ABA Agent VPS"
+echo "  Proxy: $PROXY_BASE_URL"
+echo "  Provider: $PROXY_PROVIDER"
+echo "========================================"
+echo ""
+echo "Commands:"
+echo "  aba-loop    -- start the Ralph loop (build mode)"
+echo "  aba-build   -- start the Ralph loop (build mode)"
+echo "  aba-plan    -- start the Ralph loop (plan mode)"
+echo "  aba-status  -- check proxy health"
+echo ""
+BASHRC
+    chown aba:users /home/aba/.bashrc
+    chmod 644 /home/aba/.bashrc
+  '';
+
   # Directory where ABA can write key requests (human-in-the-loop flow).
   # ABA can create files here; only root can modify/delete them after creation.
   systemd.tmpfiles.rules = [
@@ -170,8 +207,12 @@ in
   ];
 
   # Build environment for Rust/cargo (openssl-sys needs pkg-config to find openssl)
+  # Proxy config so ABA talks to the local nginx key-injection proxy, not directly to APIs.
   environment.variables = {
     PKG_CONFIG_PATH = "/run/current-system/sw/lib/pkgconfig";
+    PROXY_BASE_URL  = "http://127.0.0.1:8080/openai";
+    PROXY_PROVIDER  = "openai";
+    RUST_LOG        = "info";
   };
 
   # --------------------------------------------------------------------------
