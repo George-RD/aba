@@ -13,11 +13,10 @@ All gaps grouped by priority tier. Milestone column uses ABA's milestone numberi
 
 | Feature | Loom Status | ABA Status | Milestone |
 |---|---|---|---|
-| Session persistence / resume | `loom-server-sessions` SQLite store with full turn history | Not implemented; agent is single-shot per invocation | M3 / HL-2 |
-| Approval gate (dangerous ops) | N/A (Loom is autonomous) | Not planned; HumanLayer pattern directly applicable | HL-3 |
-| ACE-FCA context engineering | N/A | Not planned; research→plan→implement phases missing | HL-2 |
+| Session persistence / resume | `loom-server-sessions` SQLite store with full turn history | Not implemented; agent is single-shot per invocation | M5 |
 | Rollback spec on failed push | Autonomous pushes with auto-rollback in `loop.sh` | `loop.sh` can push; no documented rollback strategy | M4 |
-| Cargo test as fitness check | Full verification suite (`TEST_PLAN.md`) | `cargo test` run in PostToolsHook; no formal test strategy | M2 |
+| Full fitness check (test+lint+fmt) | Full verification suite (`TEST_PLAN.md`) | `cargo test` only in PostToolsHook; missing clippy+fmt | M1 |
+| Subagent guidance in prompts | Loom prompts instruct agents to use subagents for parallel file study | Updated: PROMPT_plan.md and PROMPT_build.md now include subagent guidance | M2 |
 
 ### P1 — Near-Term Capability Gaps
 
