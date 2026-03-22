@@ -1,13 +1,13 @@
-FROM nixos/nix AS builder
+FROM nixos/nix:2.24.6 AS builder
 
 RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 
 COPY . /build
 WORKDIR /build
 RUN nix build .#aba --print-out-paths > /aba-out-path \
- && nix-store --export $(nix-store -qR $(cat /aba-out-path)) > /aba-closure
+ && nix-store --export $(nix-store -qR "$(cat /aba-out-path)") > /aba-closure
 
-FROM nixos/nix
+FROM nixos/nix:2.24.6
 
 RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 
