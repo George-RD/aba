@@ -74,9 +74,10 @@ elif [ "$VCS" = "jj" ] && jj git remote list 2>/dev/null | grep -q origin; then
     HAS_REMOTE=true
 fi
 
-# --- Detect container environment (Docker, Podman, systemd-nspawn) ---
+# --- Detect container environment (Docker, Podman, systemd-nspawn, k8s) ---
 IN_DOCKER=false
-if [ -f "/.dockerenv" ] || [ -f "/run/.containerenv" ] || [ -n "${container:-}" ]; then
+if [ -f "/.dockerenv" ] || [ -f "/run/.containerenv" ] || [ -n "${container:-}" ] \
+   || ([ -f "/proc/1/cgroup" ] && grep -qE "docker|kubepods|lxc|containerd" /proc/1/cgroup 2>/dev/null); then
     IN_DOCKER=true
     HAS_REMOTE=false  # Skip git push in containers
 fi
