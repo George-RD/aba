@@ -1,0 +1,71 @@
+# Spec module manifest -- controls which specs the planning agent reads
+# and what order it prioritises them in.
+
+[meta]
+version = "0.1.0"
+description = "ABA spec manifest -- defines available modules and priority paths"
+
+# Core specs: always loaded, not optional
+[[core]]
+file = "agent-core.md"
+description = "Multi-turn agent loop, tool system, LLM abstraction"
+
+[[core]]
+file = "source-control.md"
+description = "VCS trait, git/jj backends"
+
+# Optional modules: loaded based on the active path
+[[modules]]
+file = "self-bootstrapping.md"
+description = "Milestone-based roadmap (M0-M10)"
+tags = ["roadmap", "milestones"]
+
+[[modules]]
+file = "security.md"
+description = "API proxy, key isolation, SOPS/age"
+tags = ["production", "vps"]
+
+[[modules]]
+file = "conversational-layer.md"
+description = "REPL, thread persistence, dialogue"
+tags = ["interactive", "repl"]
+
+[[modules]]
+file = "observability.md"
+description = "Structured logging, cost tracking, secret redaction"
+tags = ["production", "observability"]
+
+[[modules]]
+file = "distribution.md"
+description = "Docker template, Railway, modular specs"
+tags = ["distribution", "deployment"]
+
+# Paths: named priority orderings for different use cases
+[paths.golden]
+description = "Default path -- self-improving agent that can build itself"
+priority = [
+  "self-bootstrapping.md",
+  "agent-core.md",
+  "source-control.md",
+  "observability.md",
+  "conversational-layer.md",
+  "security.md",
+  "distribution.md",
+]
+
+[paths.minimal]
+description = "Minimum viable agent -- just the loop"
+priority = [
+  "agent-core.md",
+  "source-control.md",
+  "self-bootstrapping.md",
+]
+
+[paths.interactive]
+description = "Conversational-first -- REPL before loops"
+priority = [
+  "conversational-layer.md",
+  "agent-core.md",
+  "source-control.md",
+  "self-bootstrapping.md",
+]

@@ -1,0 +1,21 @@
+# Spec manifest for minimal template
+# Just the core agent loop and VCS
+
+[meta]
+version = "0.1.0"
+description = "Minimal -- just the agent loop"
+
+[[core]]
+file = "agent-core.md"
+description = "Multi-turn agent loop, tool system, LLM abstraction"
+
+[[core]]
+file = "source-control.md"
+description = "VCS trait, git/jj backends"
+
+[paths.minimal]
+description = "Minimum viable agent -- just the loop"
+priority = [
+  "agent-core.md",
+  "source-control.md",
+]

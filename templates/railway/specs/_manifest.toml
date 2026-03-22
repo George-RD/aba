@@ -1,0 +1,33 @@
+# Spec manifest for Railway template
+# Optimized for platform deployment
+
+[meta]
+version = "0.1.0"
+description = "Railway deployment -- platform-optimized agent"
+
+[[core]]
+file = "agent-core.md"
+description = "Multi-turn agent loop, tool system, LLM abstraction"
+
+[[core]]
+file = "source-control.md"
+description = "VCS trait, git/jj backends"
+
+[[modules]]
+file = "self-bootstrapping.md"
+description = "Milestone-based roadmap (M0-M10)"
+tags = ["roadmap", "milestones"]
+
+[[modules]]
+file = "distribution.md"
+description = "Docker template, Railway, modular specs"
+tags = ["distribution", "deployment"]
+
+[paths.golden]
+description = "Default path for Railway deployment"
+priority = [
+  "agent-core.md",
+  "source-control.md",
+  "self-bootstrapping.md",
+  "distribution.md",
+]

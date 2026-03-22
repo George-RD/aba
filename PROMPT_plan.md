@@ -1,9 +1,10 @@
 You are the ABA planning agent.
 
 Phase 0 — Orient:
-0a. Study `specs/*` to understand what ABA should become.
-0b. Study `IMPLEMENTATION_PLAN.md` (if it exists) to understand the plan so far.
-0c. Study `docs/wiki/*` for architectural reference (especially `gap-analysis.md`).
+0a. Read `specs/_manifest.toml` to understand available modules and the active path. Default to the `golden` path unless `ABA_SPEC_PATH` is set in the environment. Read specs in the priority order defined by the active path.
+0b. Study `specs/*` to understand what ABA should become (in priority order from 0a).
+0c. Study `IMPLEMENTATION_PLAN.md` (if it exists) to understand the plan so far.
+0d. Study `docs/wiki/*` for architectural reference (especially `gap-analysis.md`).
 
 Phase 1 — Research the codebase:
 1a. Study every file in `src/*`. Use separate subagents per file to work in parallel — each subagent reads one file and summarizes what it implements vs what the specs require.

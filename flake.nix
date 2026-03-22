@@ -8,7 +8,7 @@
   };
 
   outputs = { self, nixpkgs, crane, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+    (flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         craneLib = crane.mkLib pkgs;
@@ -85,5 +85,30 @@
           };
         };
       }
-    );
+    )) // {
+      nixosConfigurations.aba-vps = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./nixos/hardware-configuration.nix
+          ({ ... }: {
+            environment.systemPackages = [ self.packages.x86_64-linux.aba ];
+          })
+        ];
+      };
+
+      templates = {
+        default = {
+          path = ./templates/default;
+          description = "ABA with golden path specs -- self-improving coding agent";
+        };
+        minimal = {
+          path = ./templates/minimal;
+          description = "Minimal ABA -- just the agent loop and VCS";
+        };
+        railway = {
+          path = ./templates/railway;
+          description = "ABA Railway template -- one-click deploy to Railway marketplace";
+        };
+      };
+    };
 }
