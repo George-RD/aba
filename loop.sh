@@ -23,6 +23,28 @@ for arg in "$@"; do
     fi
 done
 
+# --- Environment variable fallbacks (positional args take precedence) ---
+if [ "$MODE" = "build" ] && [ -n "$ABA_MODE" ]; then
+    MODE="$ABA_MODE"
+fi
+if [ "$MAX_ITERATIONS" -eq 0 ] && [ -n "$ABA_MAX_ITERATIONS" ]; then
+    if [[ "$ABA_MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
+        MAX_ITERATIONS="$ABA_MAX_ITERATIONS"
+    else
+        echo "WARNING: ABA_MAX_ITERATIONS='$ABA_MAX_ITERATIONS' is not a number. Ignoring."
+    fi
+fi
+
+# --- Validate mode ---
+if [ "$MODE" != "build" ] && [ "$MODE" != "plan" ]; then
+    echo "ERROR: Invalid mode '$MODE'. Must be 'build' or 'plan'."
+    exit 1
+fi
+
+# --- Spec path ---
+SPEC_PATH="${ABA_SPEC_PATH:-golden}"
+export ABA_SPEC_PATH="$SPEC_PATH"
+
 # --- Select prompt file ---
 if [ "$MODE" = "plan" ]; then
     PROMPT_FILE="PROMPT_plan.md"
@@ -52,6 +74,13 @@ elif [ "$VCS" = "jj" ] && jj git remote list 2>/dev/null | grep -q origin; then
     HAS_REMOTE=true
 fi
 
+# --- Detect container environment (Docker, Podman, systemd-nspawn) ---
+IN_DOCKER=false
+if [ -f "/.dockerenv" ] || [ -f "/run/.containerenv" ] || [ -n "${container:-}" ]; then
+    IN_DOCKER=true
+    HAS_REMOTE=false  # Skip git push in containers
+fi
+
 echo "======================================"
 echo "  ABA Ralph Wiggum Loop"
 echo "  Mode: $MODE"
@@ -60,6 +89,8 @@ echo "  VCS: $VCS"
 echo "  Branch: $CURRENT_BRANCH"
 echo "  Remote: $($HAS_REMOTE && echo 'yes' || echo 'no (local only)')"
 echo "  Max iterations: $([ $MAX_ITERATIONS -eq 0 ] && echo 'unlimited' || echo $MAX_ITERATIONS)"
+echo "  Spec path: $SPEC_PATH"
+echo "  Docker: $($IN_DOCKER && echo 'yes' || echo 'no')"
 echo "======================================"
 
 export RUST_LOG=info

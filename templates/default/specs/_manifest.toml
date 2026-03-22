@@ -1,0 +1,26 @@
+# Spec manifest for golden path template
+# Customize this to change which specs ABA prioritizes
+
+[meta]
+version = "0.1.0"
+description = "Golden path -- full self-improving agent"
+
+[[core]]
+file = "agent-core.md"
+description = "Multi-turn agent loop, tool system, LLM abstraction"
+
+[[core]]
+file = "source-control.md"
+description = "VCS trait, git/jj backends"
+
+[paths.golden]
+description = "Default path -- self-improving agent that can build itself"
+priority = [
+  "self-bootstrapping.md",
+  "agent-core.md",
+  "source-control.md",
+  "observability.md",
+  "conversational-layer.md",
+  "security.md",
+  "distribution.md",
+]

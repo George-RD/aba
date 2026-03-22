@@ -1,0 +1,9 @@
+target/
+dummy-project/
+docs/
+.git/
+*.md
+!PROMPT_plan.md
+!PROMPT_build.md
+!CLAUDE.md
+!specs/*.md
