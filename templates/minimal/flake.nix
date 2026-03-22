@@ -2,7 +2,7 @@
   description = "My ABA Instance — minimal";
 
   inputs = {
-    aba.url = "github:org/aba";
+    aba.url = "github:George-RD/aba";
     nixpkgs.follows = "aba/nixpkgs";
   };
 
