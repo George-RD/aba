@@ -13,6 +13,16 @@ description = "Multi-turn agent loop, tool system, LLM abstraction"
 file = "source-control.md"
 description = "VCS trait, git/jj backends"
 
+[[modules]]
+file = "self-bootstrapping.md"
+description = "Milestone-based roadmap (M0-M10)"
+tags = ["roadmap", "milestones"]
+
+[[modules]]
+file = "distribution.md"
+description = "Docker template, Railway, modular specs"
+tags = ["distribution", "deployment"]
+
 [paths.golden]
 description = "Default path for Railway deployment"
 priority = [
