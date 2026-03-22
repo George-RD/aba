@@ -8,7 +8,7 @@ The goal: anyone can go from zero to a running, self-improving ABA in under 5 mi
 
 ## Architecture
 
-```
+```text
 github.com/org/aba  (this repo -- the base)
         |
         ├── Tier 1: Docker Template (Railway, Fly.io, any Docker host)
@@ -162,7 +162,7 @@ Restructure `specs/` to support user customisation and a golden path default.
 
 #### Directory Structure
 
-```
+```text
 specs/
   _manifest.toml          # Declares available spec modules and the golden path
   agent-core.md           # Core agent loop (always included)
@@ -346,7 +346,7 @@ Make `loop.sh` platform-aware:
 
 Create `.dockerignore` to keep the image lean:
 
-```
+```text
 target/
 dummy-project/
 docs/
